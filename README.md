@@ -19,5 +19,5 @@ Simply place a config.json file in the same directory as the executable and popu
 - Pause
 - Resume
 - Stop
-- Volume ( Sets the volume globally, a value between 0 - 100 required)
+- Volume (Sets the volume globally, a value between 0 - 100 required)
      
