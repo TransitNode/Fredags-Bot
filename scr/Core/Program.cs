@@ -75,19 +75,24 @@ namespace Fredags_Bot
 
         private static LavalinkConfiguration CreateLavalinkConfiguration(JSONReader jsonReader)
         {
-            // Configure the Lavalink connection
-            var endpoint = new ConnectionEndpoint {
+            // Try to parse the port and validate its value
+            if (!int.TryParse(jsonReader.Port, out int port) || port < 1 || port > 65535)
+            {
+                throw new ArgumentException("Invalid port number.");
+            }
 
+            // Configure the Lavalink connection with the valid port
+            var endpoint = new ConnectionEndpoint
+            {
                 Hostname = jsonReader.Hostname,
-                Port = int.Parse(jsonReader.Port)
+                Port = port
             };
 
-            return new LavalinkConfiguration { 
-
-                Password = jsonReader.Password, 
-                RestEndpoint = endpoint, 
-                SocketEndpoint = endpoint 
-
+            return new LavalinkConfiguration
+            {
+                Password = jsonReader.Password,
+                RestEndpoint = endpoint,
+                SocketEndpoint = endpoint
             };
         }
 
