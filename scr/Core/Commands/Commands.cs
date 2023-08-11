@@ -186,5 +186,27 @@ namespace Fredags_Bot.scr.Core.Commands
             await conn.SetVolumeAsync(volume);
             await ctx.RespondAsync($"Volume set to {volume}%.");
         }
+
+        [Command("help")]
+        public async Task Help(CommandContext ctx)
+        {
+            var embed = new DSharpPlus.Entities.DiscordEmbedBuilder
+            {
+                Title = "Available Commands",
+                Description = "Here are the commands you can use:",
+                Color = DSharpPlus.Entities.DiscordColor.CornflowerBlue
+            };
+
+            embed.AddField("!join", "Joins a voice channel.");
+            embed.AddField("!leave", "Leaves the current voice channel.");
+            embed.AddField("!play [URL]", "Plays a track from the given URL.");
+            embed.AddField("!pause", "Pauses playback.");
+            embed.AddField("!stop", "Stops playback.");
+            embed.AddField("!resume", "Resumes playback.");
+            embed.AddField("!jump [time]", "Jumps to a specific time in the track. Format: '0:0:0' (hours:minutes:seconds).");
+            embed.AddField("!volume [0-100]", "Sets the volume to a specific level.");
+
+            await ctx.RespondAsync(embed: embed);
+        }
     }
 }
