@@ -19,5 +19,6 @@ Simply place a config.json file in the same directory as the executable and popu
 - Pause
 - Resume
 - Stop
+- Jump (Skips ahead, formatted in hours:minutes:seconds, eg: !jump 00:45:00.
 - Volume (Sets the volume globally, a value between 0 - 100 required)
      
