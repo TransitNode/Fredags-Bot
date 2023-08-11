@@ -1,4 +1,4 @@
-This is a simple discord music bot that plays music from any source supported by lavalink. 
+This is a simple discord music bot written with the DSharpPlus library, the bot plays music from any source supported by lavalink (youtube, soundcloud, vimeo, twitch). 
 
 Simply place a config.json file in the same directory as the executable and populate it with these required data structures:
 
