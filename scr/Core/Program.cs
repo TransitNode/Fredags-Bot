@@ -17,28 +17,14 @@ namespace Fredags_Bot
 
         static async Task Main(string[] args)
         {
-            var configuration = new JSONReader(); // Read the json configuration
-            InitializeBot(configuration); // Set up the bot
-
-            await ConnectAsync(configuration); // Pass the json configuration here
-            DebugPrintRegisteredCommands(); // Print commands for debugging
-            await Task.Delay(-1); // Keep the program running indefinitely
+            var jsonReader = new JSONReader();
+            InitializeBot(jsonReader);
+            await ConnectAsync(jsonReader);
+            DebugPrintRegisteredCommands();
+            await Task.Delay(-1);
         }
 
-        private static void InitializeBot(JSONReader configuration)
-        {
-            Client = InitializeDiscordClient(configuration);
-            Commands = InitializeCommands(configuration);
-        }
-
-        private static async Task ConnectAsync(JSONReader jsonReader) 
-        {
-            var lavalink = InitializeLavalink();
-            await Client.ConnectAsync();
-            await lavalink.ConnectAsync(CreateLavalinkConfiguration(jsonReader)); 
-        }
-
-        private static DiscordClient InitializeDiscordClient(JSONReader jsonReader)
+        private static void InitializeBot(JSONReader jsonReader)
         {
             var config = new DiscordConfiguration
             {
@@ -49,13 +35,11 @@ namespace Fredags_Bot
                 AutoReconnect = true
             };
 
-            var client = new DiscordClient(config);
-            return client;
-        }
+            Client = new DiscordClient(config);
+            UserEvents.Register(Client); // Register user events
+            UserLogging.Register(Client);
 
-        private static CommandsNextExtension InitializeCommands(JSONReader jsonReader)
-        {
-            var config = new CommandsNextConfiguration
+            var commandsConfig = new CommandsNextConfiguration
             {
                 StringPrefixes = new[] { jsonReader.Prefix },
                 EnableMentionPrefix = true,
@@ -63,25 +47,24 @@ namespace Fredags_Bot
                 EnableDefaultHelp = false
             };
 
-            var commands = Client.UseCommandsNext(config);
-            commands.RegisterCommands<Commands>();
-            return commands;
+            Commands = Client.UseCommandsNext(commandsConfig);
+            Commands.RegisterCommands<Commands>();
         }
 
-        private static LavalinkExtension InitializeLavalink()
+        private static async Task ConnectAsync(JSONReader jsonReader)
         {
-            return Client.UseLavalink(); // Set up Lavalink for audio
+            var lavalink = Client.UseLavalink();
+            await Client.ConnectAsync();
+            await lavalink.ConnectAsync(CreateLavalinkConfiguration(jsonReader));
         }
 
         private static LavalinkConfiguration CreateLavalinkConfiguration(JSONReader jsonReader)
         {
-            // Try to parse the port and validate its value
             if (!int.TryParse(jsonReader.Port, out int port) || port < 1 || port > 65535)
             {
                 throw new ArgumentException("Invalid port number.");
             }
 
-            // Configure the Lavalink connection with the valid port
             var endpoint = new ConnectionEndpoint
             {
                 Hostname = jsonReader.Hostname,
@@ -98,7 +81,6 @@ namespace Fredags_Bot
 
         private static void DebugPrintRegisteredCommands()
         {
-            // Loop through and print all registered commands
             foreach (var command in Commands.RegisteredCommands.Values)
             {
                 Console.WriteLine($"Registered command: {command.Name}");

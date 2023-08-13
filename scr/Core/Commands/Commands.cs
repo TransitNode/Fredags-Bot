@@ -1,6 +1,9 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using DSharpPlus.AsyncEvents;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.Entities;
 using DSharpPlus.Lavalink;
+using DSharpPlus.Lavalink.EventArgs;
 using System;
 using System.Globalization;
 using System.Linq;
@@ -8,7 +11,6 @@ using System.Threading.Tasks;
 
 namespace Fredags_Bot.scr.Core.Commands
 {
-  
     public class Commands : BaseCommandModule
     {
         private async Task<LavalinkNodeConnection> GetConnectedNode(CommandContext ctx)
@@ -67,45 +69,80 @@ namespace Fredags_Bot.scr.Core.Commands
             if (node == null) return;
 
             var conn = await GetGuildConnection(ctx, node);
-            if (conn == null) return;
 
-            // Get the voice channel of the member
             var userVoiceChannel = ctx.Member.VoiceState.Channel;
-
-            // Get current voice channel of the bot
-            var botVoiceChannel = conn.Channel;
-
-            // Check if the bot is already in the user's channel, if not, connect
-            if (botVoiceChannel != userVoiceChannel)
+            if (userVoiceChannel == null)
             {
-                await conn.DisconnectAsync();
-                await node.ConnectAsync(userVoiceChannel);
+                await ctx.RespondAsync("You must be in a voice channel to use this command!");
+                return;
             }
 
-            if (
-                Uri.TryCreate(input, UriKind.Absolute, out var url)
-                && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps)
-            )
+            var botVoiceChannel = conn?.Channel;
+
+            if (botVoiceChannel == null || (botVoiceChannel != userVoiceChannel && conn.CurrentState.CurrentTrack == null))
+            {
+                conn = await node.ConnectAsync(userVoiceChannel);
+            }
+            else if (botVoiceChannel != userVoiceChannel)
+            {
+                await ctx.RespondAsync("I'm already playing in another channel!");
+                return;
+            }
+
+            if (ctx.Channel.Id != 1094295537253109770) // Replace with the specific channel ID where the command is allowed
+            {
+                await ctx.RespondAsync("This command can only be used in the designated bot channel.");
+                return;
+            }
+
+            if (Uri.TryCreate(input, UriKind.Absolute, out var url) && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps))
             {
                 var track = await node.Rest.GetTracksAsync(url.ToString());
+                var selectedTrack = track.Tracks.First();
 
-                if (
-                    track.LoadResultType == LavalinkLoadResultType.LoadFailed
-                    || track.LoadResultType == LavalinkLoadResultType.NoMatches
-                )
+                if (track.LoadResultType == LavalinkLoadResultType.LoadFailed || track.LoadResultType == LavalinkLoadResultType.NoMatches)
                 {
                     await ctx.RespondAsync($"Track loading failed for {input}.");
                     return;
                 }
 
-                await conn.PlayAsync(track.Tracks.First());
-                await ctx.RespondAsync($"Now playing {track.Tracks.First().Title}!");
+                await conn.PlayAsync(selectedTrack);
+
+                var embed = new DiscordEmbedBuilder
+                {
+                    Title = "🎶 Requested Song:",
+                    Description = $"[{selectedTrack.Title}]({selectedTrack.Uri})",
+                    Color = new DiscordColor("#1DB954"),
+                    Timestamp = DateTimeOffset.UtcNow
+                };
+
+                embed.AddField("Length", selectedTrack.Length.ToString(@"mm\:ss"), false);
+                embed.AddField("URL", selectedTrack.Uri.ToString(), false);
+                embed.AddField("Author", selectedTrack.Author, false);
+                embed.AddField("Requested By", ctx.Member.Mention, false);
+
+                await ctx.Message.DeleteAsync();
+
+                var embedMessage = await ctx.RespondAsync(embed: embed);
+
+                AsyncEventHandler<LavalinkGuildConnection, TrackFinishEventArgs> handler = null;
+                handler = async (_, args) =>
+                {
+                    if (args.Track == selectedTrack)
+                    {
+                        await embedMessage.DeleteAsync();
+                        conn.PlaybackFinished -= handler; // Unregister the handler once the track finishes playing
+                    }
+                };
+
+                conn.PlaybackFinished += handler;
             }
             else
             {
                 await ctx.RespondAsync("Invalid input. Please provide a valid URL.");
             }
         }
+
 
         [Command("pause")]
         public async Task Pause(CommandContext ctx)
@@ -164,7 +201,7 @@ namespace Fredags_Bot.scr.Core.Commands
             }
             else
             {
-                await ctx.RespondAsync("Invalid time format. Use format like '0:0:0' (hours:minutes:seconds).");
+                await ctx.RespondAsync("Invalid time format. Use format like '0:0:30' for 30 seconds.");
             }
         }
 
