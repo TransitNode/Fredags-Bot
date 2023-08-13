@@ -157,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="scr\config\JSONReader.cs" />
+    <Compile Include="scr\Core\Commands\CommandHandler.cs" />
     <Compile Include="scr\Core\Commands\Commands.cs" />
     <Compile Include="scr\Core\UserEvents\UserLogging.cs" />
     <Compile Include="scr\Core\Program.cs" />

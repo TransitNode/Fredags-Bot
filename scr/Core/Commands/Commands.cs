@@ -58,8 +58,16 @@ namespace Fredags_Bot.scr.Core.Commands
             var conn = await GetGuildConnection(ctx, node);
             if (conn == null) return;
 
+            var botChannel = conn.Channel;
+            var userChannel = ctx.Member.VoiceState?.Channel;
+            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
+            {
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return;
+            }
+
             await conn.DisconnectAsync();
-            await ctx.RespondAsync($"Left {ctx.Member.VoiceState.Channel.Name}!");
+            await ctx.RespondAsync($"Left {botChannel.Name}!");
         }
 
         [Command("play")]
@@ -151,8 +159,17 @@ namespace Fredags_Bot.scr.Core.Commands
             if (node == null) return;
 
             var conn = await GetGuildConnection(ctx, node);
-            if (conn == null || conn.CurrentState.CurrentTrack == null) return;
+            if (conn == null) return;
 
+            var botChannel = conn.Channel;
+            var userChannel = ctx.Member.VoiceState?.Channel;
+            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
+            {
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return;
+            }
+
+            if (conn.CurrentState.CurrentTrack == null) return;
             await conn.PauseAsync();
             await ctx.RespondAsync("Paused playback.");
         }
@@ -166,6 +183,14 @@ namespace Fredags_Bot.scr.Core.Commands
             var conn = await GetGuildConnection(ctx, node);
             if (conn == null || conn.CurrentState.CurrentTrack == null) return;
 
+            var botChannel = conn.Channel;
+            var userChannel = ctx.Member.VoiceState?.Channel;
+            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
+            {
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return;
+            }
+
             await conn.StopAsync();
             await ctx.RespondAsync("Stopped playback.");
         }
@@ -177,8 +202,17 @@ namespace Fredags_Bot.scr.Core.Commands
             if (node == null) return;
 
             var conn = await GetGuildConnection(ctx, node);
-            if (conn == null || conn.CurrentState.CurrentTrack == null) return;
+            if (conn == null) return;
 
+            var botChannel = conn.Channel;
+            var userChannel = ctx.Member.VoiceState?.Channel;
+            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
+            {
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return;
+            }
+
+            if (conn.CurrentState.CurrentTrack == null) return;
             await conn.ResumeAsync();
             await ctx.RespondAsync("Resumed playback.");
         }
@@ -190,11 +224,19 @@ namespace Fredags_Bot.scr.Core.Commands
             if (node == null) return;
 
             var conn = await GetGuildConnection(ctx, node);
-            if (conn == null || conn.CurrentState.CurrentTrack == null) return;
+            if (conn == null) return;
 
-            if (
-                TimeSpan.TryParseExact(time, @"h\:m\:s", CultureInfo.InvariantCulture, out var jumpTime)
-            )
+            var botChannel = conn.Channel;
+            var userChannel = ctx.Member.VoiceState?.Channel;
+            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
+            {
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return;
+            }
+
+            if (conn.CurrentState.CurrentTrack == null) return;
+
+            if (TimeSpan.TryParseExact(time, @"h\:m\:s", CultureInfo.InvariantCulture, out var jumpTime))
             {
                 await conn.SeekAsync(jumpTime);
                 await ctx.RespondAsync($"Jumped to {jumpTime} in the track.");
@@ -214,6 +256,14 @@ namespace Fredags_Bot.scr.Core.Commands
             var conn = await GetGuildConnection(ctx, node);
             if (conn == null) return;
 
+            var botChannel = conn.Channel;
+            var userChannel = ctx.Member.VoiceState?.Channel;
+            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
+            {
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return;
+            }
+
             if (volume < 0 || volume > 100)
             {
                 await ctx.RespondAsync("Volume must be between 0 and 100.");
@@ -223,6 +273,7 @@ namespace Fredags_Bot.scr.Core.Commands
             await conn.SetVolumeAsync(volume);
             await ctx.RespondAsync($"Volume set to {volume}%.");
         }
+
 
         [Command("help")]
         public async Task Help(CommandContext ctx)

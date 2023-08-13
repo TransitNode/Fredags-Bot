@@ -1,7 +1,5 @@
 ﻿using DSharpPlus;
-using DSharpPlus.CommandsNext;
 using DSharpPlus.Lavalink;
-using DSharpPlus.Net;
 using Fredags_Bot.scr.config;
 using Fredags_Bot.scr.Core.Commands;
 using Microsoft.Extensions.Logging;
@@ -12,79 +10,60 @@ namespace Fredags_Bot
 {
     internal class Program
     {
-        private static DiscordClient Client { get; set; }
-        private static CommandsNextExtension Commands { get; set; }
+        private static Lazy<DiscordClient> Client;
+        private static CommandHandler CommandHandler { get; set; }
 
         static async Task Main(string[] args)
         {
             var jsonReader = new JSONReader();
+            Client = new Lazy<DiscordClient>(() => InitializeClient(jsonReader)); // Pass jsonReader to InitializeClient
             InitializeBot(jsonReader);
             await ConnectAsync(jsonReader);
-            DebugPrintRegisteredCommands();
+            CommandHandler.DebugPrintRegisteredCommands(); // Call DebugPrintRegisteredCommands from CommandHandler
             await Task.Delay(-1);
         }
 
-        private static void InitializeBot(JSONReader jsonReader)
+        private static DiscordClient InitializeClient(JSONReader jsonReader) // Accept JSONReader instance
         {
             var config = new DiscordConfiguration
             {
                 Intents = DiscordIntents.All,
-                Token = jsonReader.Token,
+                Token = jsonReader.Token, // Access Token using jsonReader instance
                 TokenType = TokenType.Bot,
-                MinimumLogLevel = LogLevel.Debug,
+               // MinimumLogLevel = LogLevel.Debug,
                 AutoReconnect = true
             };
 
-            Client = new DiscordClient(config);
-            UserEvents.Register(Client); // Register user events
-            UserLogging.Register(Client);
+            return new DiscordClient(config);
+        }
 
-            var commandsConfig = new CommandsNextConfiguration
-            {
-                StringPrefixes = new[] { jsonReader.Prefix },
-                EnableMentionPrefix = true,
-                EnableDms = false,
-                EnableDefaultHelp = false
-            };
+        private static void InitializeBot(JSONReader jsonReader)
+        {
+            UserEvents.Register(Client.Value); // Register user events
+            UserLogging.Register(Client.Value);
 
-            Commands = Client.UseCommandsNext(commandsConfig);
-            Commands.RegisterCommands<Commands>();
+            // Initialize CommandHandler with prefixes
+            CommandHandler = new CommandHandler(Client.Value, new[] { jsonReader.Prefix });
+
+            // Register commands in CommandHandler
+            CommandHandler.RegisterCommands<Commands>();
         }
 
         private static async Task ConnectAsync(JSONReader jsonReader)
         {
-            var lavalink = Client.UseLavalink();
-            await Client.ConnectAsync();
+            var lavalink = Client.Value.UseLavalink();
+            await Client.Value.ConnectAsync();
             await lavalink.ConnectAsync(CreateLavalinkConfiguration(jsonReader));
         }
 
         private static LavalinkConfiguration CreateLavalinkConfiguration(JSONReader jsonReader)
         {
-            if (!int.TryParse(jsonReader.Port, out int port) || port < 1 || port > 65535)
-            {
-                throw new ArgumentException("Invalid port number.");
-            }
-
-            var endpoint = new ConnectionEndpoint
-            {
-                Hostname = jsonReader.Hostname,
-                Port = port
-            };
-
             return new LavalinkConfiguration
             {
                 Password = jsonReader.Password,
-                RestEndpoint = endpoint,
-                SocketEndpoint = endpoint
+                RestEndpoint = jsonReader.Endpoint,
+                SocketEndpoint = jsonReader.Endpoint
             };
-        }
-
-        private static void DebugPrintRegisteredCommands()
-        {
-            foreach (var command in Commands.RegisteredCommands.Values)
-            {
-                Console.WriteLine($"Registered command: {command.Name}");
-            }
         }
     }
 }

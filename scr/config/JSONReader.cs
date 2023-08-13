@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using DSharpPlus.Net;
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ namespace Fredags_Bot.scr.config
         public string Token { get; private set; }
         public string Prefix { get; private set; }
         public string Hostname { get; private set; }
-        public string Port { get; private set; }
+        public ConnectionEndpoint Endpoint { get; private set; }
         public string Password { get; private set; }
 
         public JSONReader(string filePath = null)
@@ -38,16 +39,13 @@ namespace Fredags_Bot.scr.config
                 using (StreamReader sr = new StreamReader(filePath))
                 {
                     string json = await sr.ReadToEndAsync();
-                    Console.WriteLine($"JSON Content: {json}"); // Debug print
-
                     JSONStructure data = JsonConvert.DeserializeObject<JSONStructure>(json);
-                    Console.WriteLine($"Deserialized Object: {JsonConvert.SerializeObject(data)}"); // Debug print
 
                     Token = data.Token;
                     Prefix = data.Prefix;
                     Hostname = data.Hostname;
-                    Port = data.Port;
                     Password = data.Password;
+                    Endpoint = CreateEndpoint(data.Port);
                 }
             }
             catch (Exception ex)
@@ -55,6 +53,20 @@ namespace Fredags_Bot.scr.config
                 // Handle exceptions here, perhaps by logging or rethrowing
                 Console.WriteLine($"An error occurred while reading the JSON: {ex}");
             }
+        }
+
+        private ConnectionEndpoint CreateEndpoint(string portString)
+        {
+            if (!int.TryParse(portString, out int port) || port < 1 || port > 65535)
+            {
+                throw new ArgumentException("Invalid port number.");
+            }
+
+            return new ConnectionEndpoint
+            {
+                Hostname = this.Hostname,
+                Port = port
+            };
         }
 
         private sealed class JSONStructure
