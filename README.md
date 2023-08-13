@@ -1,3 +1,5 @@
+NOTE: Bot contains hardcoded values like discord channel ids, and user ids, beware that you will need to change these or remove them entierly from the code.
+
 This is a simple discord music bot written with the DSharpPlus library, the bot plays music from any source supported by lavalink (youtube, soundcloud, vimeo, twitch). 
 
 Simply place a config.json file in the same directory as the executable and populate it with these required data structures:
