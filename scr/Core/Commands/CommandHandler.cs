@@ -7,31 +7,29 @@ namespace Fredags_Bot
 {
     internal class CommandHandler
     {
-        private CommandsNextExtension Commands { get; }
+        private readonly CommandsNextExtension _commands;
 
         public CommandHandler(DiscordClient client, IEnumerable<string> prefixes)
         {
-            var commandsConfig = new CommandsNextConfiguration
+            _commands = client.UseCommandsNext(new CommandsNextConfiguration
             {
                 StringPrefixes = prefixes,
                 EnableMentionPrefix = true,
                 EnableDms = false,
                 EnableDefaultHelp = false
-            };
-
-            Commands = client.UseCommandsNext(commandsConfig);
+            });
         }
 
-        public void RegisterCommands<T>() where T : BaseCommandModule 
+        public void RegisterCommands<T>() where T : BaseCommandModule
         {
-            Commands.RegisterCommands<T>();
+            _commands.RegisterCommands<T>();
         }
 
         public void DebugPrintRegisteredCommands()
         {
-            foreach (var command in Commands.RegisteredCommands.Values)
+            foreach (var kvp in _commands.RegisteredCommands)
             {
-                Console.WriteLine($"Registered command: {command.Name}");
+                Console.WriteLine($"Registered command: {kvp.Value.Name}");
             }
         }
     }

@@ -2,7 +2,6 @@
 using DSharpPlus.Lavalink;
 using Fredags_Bot.scr.config;
 using Fredags_Bot.scr.Core.Commands;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
@@ -10,60 +9,66 @@ namespace Fredags_Bot
 {
     internal class Program
     {
-        private static Lazy<DiscordClient> Client;
+        private static DiscordClient Client { get; set; }
         private static CommandHandler CommandHandler { get; set; }
+        private static JSONReader JsonReader { get; set; }
 
         static async Task Main(string[] args)
         {
-            var jsonReader = new JSONReader();
-            Client = new Lazy<DiscordClient>(() => InitializeClient(jsonReader)); // Pass jsonReader to InitializeClient
-            InitializeBot(jsonReader);
-            await ConnectAsync(jsonReader);
-            CommandHandler.DebugPrintRegisteredCommands(); // Call DebugPrintRegisteredCommands from CommandHandler
-            await Task.Delay(-1);
+            try
+            {
+                InitializeJsonReader();
+                InitializeClient();
+                InitializeBot();
+                await ConnectAsync();
+                CommandHandler.DebugPrintRegisteredCommands();
+                await Task.Delay(-1); // Keeps the bot running indefinitely
+            }
+            catch (Exception ex)
+            {
+                // exception handler
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
         }
 
-        private static DiscordClient InitializeClient(JSONReader jsonReader) // Accept JSONReader instance
+        private static void InitializeJsonReader()
+        {
+            JsonReader = new JSONReader();
+        }
+
+        private static void InitializeClient()
         {
             var config = new DiscordConfiguration
             {
                 Intents = DiscordIntents.All,
-                Token = jsonReader.Token, // Access Token using jsonReader instance
+                Token = JsonReader.Token,
                 TokenType = TokenType.Bot,
-               // MinimumLogLevel = LogLevel.Debug,
                 AutoReconnect = true
             };
 
-            return new DiscordClient(config);
+            Client = new DiscordClient(config);
         }
 
-        private static void InitializeBot(JSONReader jsonReader)
+        private static void InitializeBot()
         {
-            UserEvents.Register(Client.Value); // Register user events
-            UserLogging.Register(Client.Value);
+            UserEvents.Register(Client); // Register user events
+            UserLogging.Register(Client);
 
             // Initialize CommandHandler with prefixes
-            CommandHandler = new CommandHandler(Client.Value, new[] { jsonReader.Prefix });
-
-            // Register commands in CommandHandler
+            CommandHandler = new CommandHandler(Client, new[] { JsonReader.Prefix });
             CommandHandler.RegisterCommands<Commands>();
         }
 
-        private static async Task ConnectAsync(JSONReader jsonReader)
+        private static async Task ConnectAsync()
         {
-            var lavalink = Client.Value.UseLavalink();
-            await Client.Value.ConnectAsync();
-            await lavalink.ConnectAsync(CreateLavalinkConfiguration(jsonReader));
-        }
-
-        private static LavalinkConfiguration CreateLavalinkConfiguration(JSONReader jsonReader)
-        {
-            return new LavalinkConfiguration
+            var lavalink = Client.UseLavalink();
+            await Client.ConnectAsync();
+            await lavalink.ConnectAsync(new LavalinkConfiguration
             {
-                Password = jsonReader.Password,
-                RestEndpoint = jsonReader.Endpoint,
-                SocketEndpoint = jsonReader.Endpoint
-            };
+                Password = JsonReader.Password,
+                RestEndpoint = JsonReader.Endpoint,
+                SocketEndpoint = JsonReader.Endpoint
+            });
         }
     }
 }

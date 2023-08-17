@@ -9,49 +9,49 @@ namespace Fredags_Bot.scr.config
     internal class JSONReader
     {
         private static readonly string DEFAULT_PATH = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        private readonly Lazy<Task<JSONStructure>> jsonData;
 
-        public string Token { get; private set; }
-        public string Prefix { get; private set; }
-        public string Hostname { get; private set; }
-        public ConnectionEndpoint Endpoint { get; private set; }
-        public string Password { get; private set; }
+        public string Token => jsonData.Value.Result.Token;
+        public string Prefix => jsonData.Value.Result.Prefix;
+        public string Hostname => jsonData.Value.Result.Hostname;
+        public ConnectionEndpoint Endpoint => CreateEndpoint(jsonData.Value.Result.Port);
+        public string Password => jsonData.Value.Result.Password;
 
         public JSONReader(string filePath = null)
         {
-            if (filePath == null) filePath = DEFAULT_PATH;
-            Console.WriteLine($"Looking for config.json at {filePath}"); // Debug print
+            jsonData = new Lazy<Task<JSONStructure>>(() => LoadJsonData(filePath ?? DEFAULT_PATH));
+        }
+
+        private async Task<JSONStructure> LoadJsonData(string filePath)
+        {
+            Console.WriteLine($"Looking for config.json at {filePath}");
 
             if (File.Exists(filePath))
             {
                 Console.WriteLine("config.json found successfully.");
-                ReadJSON(filePath).GetAwaiter().GetResult();
+                return await ReadJSON(filePath);
             }
             else
             {
                 Console.WriteLine("config.json not found. Please check the path.");
+                return null;
             }
         }
 
-        private async Task ReadJSON(string filePath)
+        private async Task<JSONStructure> ReadJSON(string filePath)
         {
             try
             {
                 using (StreamReader sr = new StreamReader(filePath))
                 {
                     string json = await sr.ReadToEndAsync();
-                    JSONStructure data = JsonConvert.DeserializeObject<JSONStructure>(json);
-
-                    Token = data.Token;
-                    Prefix = data.Prefix;
-                    Hostname = data.Hostname;
-                    Password = data.Password;
-                    Endpoint = CreateEndpoint(data.Port);
+                    return JsonConvert.DeserializeObject<JSONStructure>(json);
                 }
             }
             catch (Exception ex)
             {
-                // Handle exceptions here, perhaps by logging or rethrowing
                 Console.WriteLine($"An error occurred while reading the JSON: {ex}");
+                return null;
             }
         }
 

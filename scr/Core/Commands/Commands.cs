@@ -13,70 +13,57 @@ namespace Fredags_Bot.scr.Core.Commands
 {
     public class Commands : BaseCommandModule
     {
-        private async Task<LavalinkNodeConnection> GetConnectedNode(CommandContext ctx)
+        private async Task<(LavalinkNodeConnection, LavalinkGuildConnection)> GetNodeAndGuildConnection(CommandContext ctx)
         {
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any())
             {
                 await ctx.RespondAsync("The Lavalink connection is not established");
-                return null;
+                return (null, null);
             }
 
-            return lava.ConnectedNodes.Values.First();
+            var node = lava.ConnectedNodes.Values.First();
+            var connection = node.GetGuildConnection(ctx.Member.Guild);
+            return (node, connection);
         }
 
-        private async Task<LavalinkGuildConnection> GetGuildConnection(CommandContext ctx, LavalinkNodeConnection node)
+        private async Task<bool> EnsureSameVoiceChannel(CommandContext ctx, LavalinkGuildConnection conn)
         {
-            var member = ctx.Member;
-            if (member.VoiceState == null || member.VoiceState.Channel == null)
+            if (conn.Channel == null || ctx.Member.VoiceState?.Channel == null || conn.Channel.Id != ctx.Member.VoiceState.Channel.Id)
             {
-                await ctx.RespondAsync("You are not in a voice channel.");
-                return null;
+                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
+                return false;
             }
 
-            return node.GetGuildConnection(member.VoiceState.Guild);
+            return true;
         }
 
         [Command("join")]
         public async Task Join(CommandContext ctx)
         {
-            var node = await GetConnectedNode(ctx);
+            var (node, _) = await GetNodeAndGuildConnection(ctx);
             if (node == null) return;
 
             var channel = ctx.Member.VoiceState.Channel;
             await node.ConnectAsync(channel);
-
             await ctx.RespondAsync($"Joined {channel.Name}!");
         }
 
         [Command("leave")]
         public async Task Leave(CommandContext ctx)
         {
-            var node = await GetConnectedNode(ctx);
-            if (node == null) return;
-
-            var conn = await GetGuildConnection(ctx, node);
-            if (conn == null) return;
-
-            var botChannel = conn.Channel;
-            var userChannel = ctx.Member.VoiceState?.Channel;
-            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
-            {
-                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
-                return;
-            }
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
+            if (!await EnsureSameVoiceChannel(ctx, conn)) return;
 
             await conn.DisconnectAsync();
-            await ctx.RespondAsync($"Left {botChannel.Name}!");
+            await ctx.RespondAsync($"Left {conn.Channel.Name}!");
         }
 
         [Command("play")]
         public async Task Play(CommandContext ctx, [RemainingText] string input)
         {
-            var node = await GetConnectedNode(ctx);
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
             if (node == null) return;
-
-            var conn = await GetGuildConnection(ctx, node);
 
             var userVoiceChannel = ctx.Member.VoiceState.Channel;
             if (userVoiceChannel == null)
@@ -151,23 +138,11 @@ namespace Fredags_Bot.scr.Core.Commands
             }
         }
 
-
         [Command("pause")]
         public async Task Pause(CommandContext ctx)
         {
-            var node = await GetConnectedNode(ctx);
-            if (node == null) return;
-
-            var conn = await GetGuildConnection(ctx, node);
-            if (conn == null) return;
-
-            var botChannel = conn.Channel;
-            var userChannel = ctx.Member.VoiceState?.Channel;
-            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
-            {
-                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
-                return;
-            }
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
+            if (!await EnsureSameVoiceChannel(ctx, conn)) return;
 
             if (conn.CurrentState.CurrentTrack == null) return;
             await conn.PauseAsync();
@@ -177,19 +152,10 @@ namespace Fredags_Bot.scr.Core.Commands
         [Command("stop")]
         public async Task Stop(CommandContext ctx)
         {
-            var node = await GetConnectedNode(ctx);
-            if (node == null) return;
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
+            if (node == null || conn == null || conn.CurrentState.CurrentTrack == null) return;
 
-            var conn = await GetGuildConnection(ctx, node);
-            if (conn == null || conn.CurrentState.CurrentTrack == null) return;
-
-            var botChannel = conn.Channel;
-            var userChannel = ctx.Member.VoiceState?.Channel;
-            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
-            {
-                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
-                return;
-            }
+            if (!await EnsureSameVoiceChannel(ctx, conn)) return;
 
             await conn.StopAsync();
             await ctx.RespondAsync("Stopped playback.");
@@ -198,19 +164,8 @@ namespace Fredags_Bot.scr.Core.Commands
         [Command("resume")]
         public async Task Resume(CommandContext ctx)
         {
-            var node = await GetConnectedNode(ctx);
-            if (node == null) return;
-
-            var conn = await GetGuildConnection(ctx, node);
-            if (conn == null) return;
-
-            var botChannel = conn.Channel;
-            var userChannel = ctx.Member.VoiceState?.Channel;
-            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
-            {
-                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
-                return;
-            }
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
+            if (!await EnsureSameVoiceChannel(ctx, conn)) return;
 
             if (conn.CurrentState.CurrentTrack == null) return;
             await conn.ResumeAsync();
@@ -220,19 +175,8 @@ namespace Fredags_Bot.scr.Core.Commands
         [Command("jump")]
         public async Task Jump(CommandContext ctx, string time)
         {
-            var node = await GetConnectedNode(ctx);
-            if (node == null) return;
-
-            var conn = await GetGuildConnection(ctx, node);
-            if (conn == null) return;
-
-            var botChannel = conn.Channel;
-            var userChannel = ctx.Member.VoiceState?.Channel;
-            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
-            {
-                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
-                return;
-            }
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
+            if (!await EnsureSameVoiceChannel(ctx, conn)) return;
 
             if (conn.CurrentState.CurrentTrack == null) return;
 
@@ -250,19 +194,8 @@ namespace Fredags_Bot.scr.Core.Commands
         [Command("volume")]
         public async Task SetVolume(CommandContext ctx, int volume)
         {
-            var node = await GetConnectedNode(ctx);
-            if (node == null) return;
-
-            var conn = await GetGuildConnection(ctx, node);
-            if (conn == null) return;
-
-            var botChannel = conn.Channel;
-            var userChannel = ctx.Member.VoiceState?.Channel;
-            if (botChannel == null || userChannel == null || botChannel.Id != userChannel.Id)
-            {
-                await ctx.RespondAsync("You must be in the same channel as the bot to use this command.");
-                return;
-            }
+            var (node, conn) = await GetNodeAndGuildConnection(ctx);
+            if (!await EnsureSameVoiceChannel(ctx, conn)) return;
 
             if (volume < 0 || volume > 100)
             {
@@ -273,7 +206,6 @@ namespace Fredags_Bot.scr.Core.Commands
             await conn.SetVolumeAsync(volume);
             await ctx.RespondAsync($"Volume set to {volume}%.");
         }
-
 
         [Command("help")]
         public async Task Help(CommandContext ctx)

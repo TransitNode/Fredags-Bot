@@ -1,6 +1,7 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -9,7 +10,13 @@ namespace Fredags_Bot
     public class UserLogging
     {
         private static readonly ulong logChannelId = 686022816700694538;
-        private static readonly ulong[] excludedChannelIds = { 686022816700694538, 1094295537253109770, 1044275476832714784 };
+        private static readonly HashSet<ulong> excludedChannelIds = new HashSet<ulong>
+        {
+            686022816700694538,
+            1094295537253109770,
+            1044275476832714784
+        };
+        private static DiscordChannel logChannel;
 
         public static void Register(DiscordClient client)
         {
@@ -17,13 +24,13 @@ namespace Fredags_Bot
             client.MessageUpdated += OnMessageUpdated;
             client.UserUpdated += OnUserUpdated;
             client.GuildMemberUpdated += OnGuildMemberUpdated;
+
+            logChannel = client.GetChannelAsync(logChannelId).GetAwaiter().GetResult();
         }
 
         private static async Task OnMessageDeleted(DiscordClient sender, MessageDeleteEventArgs args)
         {
-            if (excludedChannelIds.Contains(args.Channel.Id) || args.Message.Author.IsBot) return; // Don't log events from the excluded channels or messages by the bot.
-
-            var logChannel = await sender.GetChannelAsync(logChannelId);
+            if (excludedChannelIds.Contains(args.Channel.Id) || args.Message.Author.IsBot) return;
 
             var embed = new DiscordEmbedBuilder
             {
@@ -41,12 +48,7 @@ namespace Fredags_Bot
 
         private static async Task OnMessageUpdated(DiscordClient sender, MessageUpdateEventArgs args)
         {
-            if (excludedChannelIds.Contains(args.Channel.Id) || args.Message.Author.IsBot) return; // Don't log events from the excluded channels or messages by the bot.
-
-            if (args.Message.Content == args.MessageBefore.Content)
-                return;
-
-            var logChannel = await sender.GetChannelAsync(logChannelId);
+            if (excludedChannelIds.Contains(args.Channel.Id) || args.Message.Author.IsBot || args.Message.Content == args.MessageBefore.Content) return;
 
             var embed = new DiscordEmbedBuilder
             {
@@ -64,10 +66,7 @@ namespace Fredags_Bot
 
         private static async Task OnUserUpdated(DiscordClient sender, UserUpdateEventArgs args)
         {
-            if (args.UserBefore.AvatarUrl == args.UserAfter.AvatarUrl)
-                return;
-
-            var logChannel = await sender.GetChannelAsync(logChannelId);
+            if (args.UserBefore.AvatarUrl == args.UserAfter.AvatarUrl) return;
 
             var embed = new DiscordEmbedBuilder
             {
@@ -87,8 +86,6 @@ namespace Fredags_Bot
             var removedRoles = args.RolesBefore.Except(args.RolesAfter).ToList();
 
             if (addedRoles.Count == 0 && removedRoles.Count == 0) return;
-
-            var logChannel = await sender.GetChannelAsync(logChannelId);
 
             var embed = new DiscordEmbedBuilder
             {
